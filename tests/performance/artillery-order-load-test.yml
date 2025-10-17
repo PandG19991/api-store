@@ -1,0 +1,52 @@
+
+config:
+  target: "http://localhost:3001"
+  phases:
+    - duration: 30  # 预热: 30秒，每秒1个请求
+      arrivalRate: 1
+      name: "Warm up"
+    - duration: 60  # 负载测试: 60秒，逐步增加到50请求/秒
+      arrivalRate: 25
+      rampTo: 50
+      name: "Ramp up"
+    - duration: 120  # 持续压力: 120秒，每秒50个请求
+      arrivalRate: 50
+      name: "Sustained load"
+    - duration: 30  # 冷却: 30秒，逐步降低
+      arrivalRate: 50
+      rampTo: 5
+      name: "Cool down"
+  processor: "./load-test-processor.js"
+  variables:
+    products: ["prod-001", "prod-002", "prod-003", "prod-004", "prod-005"]
+    testEmails:
+      - "loadtest1@test.com"
+      - "loadtest2@test.com"
+      - "loadtest3@test.com"
+      - "loadtest4@test.com"
+      - "loadtest5@test.com"
+
+scenarios:
+  - name: "创建订单流程"
+    flow:
+      - get:
+          url: "/api/products"
+          expect:
+            - statusCode: 200
+      - think: 2  # 等待2秒
+      - post:
+          url: "/api/orders"
+          json:
+            customerEmail: "{{ randomEmail }}"
+            items:
+              - productId: "{{ randomProduct }}"
+                quantity: 1
+          expect:
+            - statusCode: 201
+      - think: 1
+      - post:
+          url: "/api/orders/{{ orderId }}/send-verification-code"
+          json:
+            email: "{{ randomEmail }}"
+          expect:
+            - statusCode: 200

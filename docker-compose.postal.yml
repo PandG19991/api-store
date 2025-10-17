@@ -1,0 +1,64 @@
+# Postal 邮件服务器 Docker Compose 配置
+# 官方文档: https://docs.postalserver.io/
+
+services:
+  postal-mysql:
+    image: mariadb:10.6
+    container_name: postal-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: postal_root_password
+      MYSQL_DATABASE: postal
+      MYSQL_USER: postal
+      MYSQL_PASSWORD: postal_password
+    volumes:
+      - postal-mysql-data:/var/lib/mysql
+    networks:
+      - postal-network
+    restart: unless-stopped
+
+  postal-rabbitmq:
+    image: rabbitmq:3.11-alpine
+    container_name: postal-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: postal
+      RABBITMQ_DEFAULT_PASS: postal_password
+    volumes:
+      - postal-rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - postal-network
+    restart: unless-stopped
+
+  postal:
+    image: ghcr.io/postalserver/postal:latest
+    container_name: postal
+    depends_on:
+      - postal-mysql
+      - postal-rabbitmq
+    ports:
+      - "5000:5000"   # Web 管理界面
+      - "25:25"       # SMTP
+      - "587:587"     # SMTP (提交)
+    environment:
+      POSTAL_MYSQL_HOST: postal-mysql
+      POSTAL_MYSQL_DATABASE: postal
+      POSTAL_MYSQL_USERNAME: postal
+      POSTAL_MYSQL_PASSWORD: postal_password
+      POSTAL_RABBITMQ_HOST: postal-rabbitmq
+      POSTAL_RABBITMQ_USERNAME: postal
+      POSTAL_RABBITMQ_PASSWORD: postal_password
+      POSTAL_WEB_HOST: localhost:5000
+      POSTAL_SMTP_HOSTNAME: mail.yourdomain.com
+    volumes:
+      - postal-data:/opt/postal
+    networks:
+      - postal-network
+    restart: unless-stopped
+
+networks:
+  postal-network:
+    driver: bridge
+
+volumes:
+  postal-mysql-data:
+  postal-rabbitmq-data:
+  postal-data:
